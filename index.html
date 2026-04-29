@@ -12,7 +12,6 @@
     .row { display: flex; justify-content: center; margin: 4px 0; }
     .seat { width: 50px; height: 50px; margin: 4px; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; border: 2px solid #c8e6c9; }
     .seat.selected { background: #0095f6 !important; border-color: #007bb5 !important; color: #fff !important; }
-    .aisle { width: 30px; }
     .confirm-btn { margin-top: 25px; padding: 18px; width: 90%; max-width: 320px; font-size: 18px; font-weight: 700; background: #0095f6; color: white; border: none; border-radius: 15px; cursor: pointer; }
   </style>
 </head>
@@ -22,6 +21,16 @@
   <button class="confirm-btn" id="confirmBtn">ПІДТВЕРДИТИ</button>
 
 <script>
+  // ДИАГНОСТИКА: Показываем параметры ссылки при загрузке
+  window.onload = function() {
+    const params = window.location.search;
+    if (params) {
+      console.log("Параметри посилання: " + params);
+    } else {
+      alert("УВАГА: Посилання пусте, ManyChat не передав токен!");
+    }
+  };
+
   let selectedSeat = null;
   const bus = document.getElementById("bus");
   const layout = [["11","12","14","13"],["21","22","24","23"],["31","32","34","33"],["41","42","44","43"],["51","52","54","53"],["61","62",null,null],["71","72",null,null],["81","82","84","83"],["91","92","94","93"],["101","102","104","103"],["111","112","114","113"],["121","122","124","123"],["131","132","135","134","133"]];
@@ -45,15 +54,14 @@
     const mcpToken = urlParams.get('mcp_token');
 
     if (mcpToken) {
-      // Прямая отправка сигнала
       const pixelUrl = `https://manychat.com{mcpToken}&event=set_field&field=seat&value=${selectedSeat}`;
       const img = new Image();
       img.src = pixelUrl;
       
-      alert("📡 Сигнал відправлено! Токен знайдено: " + mcpToken.substring(0, 10) + "...");
-      setTimeout(() => { window.history.back(); }, 1500);
+      alert("📡 Спроба відправки через Pixel... Перевір ManyChat!");
+      setTimeout(() => { window.history.back(); }, 1000);
     } else {
-      alert("❌ Помилка: mcp_token не переданий из Instagram. Перевір, чи кнопка налаштована правильно!");
+      alert("❌ Помилка: mcp_token не знайдено. Instagram відкрив посилання без параметрів.");
     }
   };
 </script>
