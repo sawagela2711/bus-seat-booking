@@ -1,81 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Выбор места в автобусе</title>
+
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f9; padding-bottom: 50px; }
+    .bus { display: flex; flex-direction: column; align-items: center; margin-top: 20px; background: white; padding: 20px; border-radius: 15px; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .row { display: flex; justify-content: center; margin: 5px 0; }
+    .seat { width: 45px; height: 45px; margin: 4px; background: #4CAF50; color: white; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s; }
+    .seat.booked { background: #999 !important; cursor: not-allowed; opacity: 0.6; }
+    .seat.selected { background: orange !important; transform: scale(1.1); }
+    .aisle { width: 30px; }
+    button { margin-top: 20px; padding: 15px 30px; font-size: 18px; background-color: #007bff; color: white; border: none; border-radius: 25px; cursor: pointer; }
+    button:active { background-color: #0056b3; }
+  </style>
+</head>
+
+<body>
+
+<h2>🚌 Выберите место</h2>
+
+<div class="bus" id="bus"></div>
+
+<br>
+<button onclick="confirmSeat()">Подтвердить выбор</button>
+
 <script>
-const bus = document.getElementById("bus");
-let selectedSeat = null;
+  const bus = document.getElementById("bus");
+  let selectedSeat = null;
 
-// пример занятых мест
-const bookedSeats = ["21", "34", "83"];
+  // Пример занятых мест
+  const bookedSeats = ["21", "34", "83"];
 
-// твоя схема рядов
-const layout = [
-  ["11","12","14","13"],
-  ["21","22","24","23"],
-  ["31","32","34","33"],
-  ["41","42","44","43"],
-  ["51","52","54","53"],
-  ["61","62",null,null],
-  ["71","72",null,null],
-  ["81","82","84","83"],
-  ["91","92","94","93"],
-  ["101","102","104","103"],
-  ["111","112","114","113"],
-  ["121","122","124","123"],
-  ["131","132","135","134","133"]
-];
+  // Ваша новая нумерация
+  const layout = [
+    ["11","12","14","13"], ["21","22","24","23"], ["31","32","34","33"],
+    ["41","42","44","43"], ["51","52","54","53"], ["61","62",null,null],
+    ["71","72",null,null], ["81","82","84","83"], ["91","92","94","93"],
+    ["101","102","104","103"], ["111","112","114","113"], ["121","122","124","123"],
+    ["131","132","135","134","133"]
+  ];
 
-layout.forEach(rowData => {
-  const row = document.createElement("div");
-  row.className = "row";
+  layout.forEach(rowData => {
+    const row = document.createElement("div");
+    row.className = "row";
 
-  rowData.forEach((seatId, index) => {
+    rowData.forEach((seatId, index) => {
+      // Проход между сиденьями
+      if (rowData.length === 4 && index === 2) {
+        const aisle = document.createElement("div");
+        aisle.className = "aisle";
+        row.appendChild(aisle);
+      }
 
-    // проход
-    if (rowData.length === 4 && index === 2) {
-      const aisle = document.createElement("div");
-      aisle.className = "aisle";
-      row.appendChild(aisle);
-    }
+      if (!seatId) {
+        const empty = document.createElement("div");
+        empty.className = "seat";
+        empty.style.visibility = "hidden";
+        row.appendChild(empty);
+        return;
+      }
 
-    if (!seatId) {
-      const empty = document.createElement("div");
-      empty.className = "seat";
-      empty.style.visibility = "hidden";
-      row.appendChild(empty);
+      const seat = document.createElement("div");
+      seat.className = "seat";
+      seat.innerText = seatId;
+
+      if (bookedSeats.includes(seatId)) {
+        seat.classList.add("booked");
+      }
+
+      seat.onclick = () => {
+        if (seat.classList.contains("booked")) return;
+        document.querySelectorAll(".seat").forEach(s => s.classList.remove("selected"));
+        seat.classList.add("selected");
+        selectedSeat = seatId;
+      };
+
+      row.appendChild(seat);
+    });
+
+    bus.appendChild(row);
+  });
+
+  function confirmSeat() {
+    if (!selectedSeat) {
+      alert("Пожалуйста, выберите место");
       return;
     }
 
-    const seat = document.createElement("div");
-    seat.className = "seat";
-    seat.innerText = seatId;
-
-    if (bookedSeats.includes(seatId)) {
-      seat.classList.add("booked");
+    // Универсальная проверка ManyChat SDK
+    if (typeof MC !== 'undefined' && MC.getChatControl) {
+      MC.getChatControl().setCustomField("seat", selectedSeat);
+      MC.getChatControl().close();
+    } else if (window.ManyChat) {
+      ManyChat.setCustomField("seat", selectedSeat);
+      ManyChat.close();
+    } else {
+      alert("Вы выбрали место: " + selectedSeat + ". Вне ManyChat данные не сохраняются.");
     }
-
-    seat.onclick = () => {
-      if (seat.classList.contains("booked")) return;
-
-      document.querySelectorAll(".seat").forEach(s => s.classList.remove("selected"));
-      seat.classList.add("selected");
-      selectedSeat = seatId;
-    };
-
-    row.appendChild(seat);
-  });
-
-  bus.appendChild(row);
-});
-
-function confirmSeat() {
-  if (!selectedSeat) {
-    alert("Выберите место");
-    return;
   }
-
-  if (window.ManyChat) {
-    ManyChat.setCustomField("seat", selectedSeat);
-    ManyChat.close();
-  } else {
-    alert("Вы выбрали: " + selectedSeat);
-  }
-}
 </script>
+
+<script src="https://widget.manychat.com/4049391.js" defer></script>
+
+</body>
+</html>
+
