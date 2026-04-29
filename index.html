@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Выбор места в автобусе</title>
+  <title>Выбор места</title>
 
-  <!-- КОД СО СКРИНШОТА (ManyChat Pixel + SDK) -->
-  <script src="//://manychat.com" defer="defer"></script>
-  <script src="https://mccdn.me" defer="defer"></script>
+  <!-- НОВЫЙ КОД MANYCHAT С ХЭШЕМ -->
+  <script src="//widget.manychat.com/4049391_49d46.js" defer="defer"></script>
+  <script src="https://mccdn.me/assets/js/widget.js" defer="defer"></script>
 
   <style>
     * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; user-select: none; }
@@ -17,12 +17,11 @@
     .bus-container { 
       display: inline-block; background: white; padding: 15px; 
       border-radius: 25px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); 
-      border: 1px solid #e0e0e0; margin-top: 5px;
+      border: 1px solid #e0e0e0; 
     }
 
     .row { display: flex; justify-content: center; margin: 4px 0; }
 
-    /* Большие кнопки для удобства в Instagram */
     .seat { 
       width: 52px; height: 52px; margin: 4px; background: #e8f5e9; color: #2e7d32; 
       display: flex; align-items: center; justify-content: center; border-radius: 12px; 
@@ -39,9 +38,7 @@
       margin: 25px 0; padding: 18px; width: 90%; max-width: 320px;
       font-size: 18px; font-weight: 700; background-color: #0095f6; 
       color: white; border: none; border-radius: 15px; cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0,149,246,0.3);
     }
-    .confirm-btn:active { opacity: 0.8; transform: translateY(1px); }
   </style>
 </head>
 <body>
@@ -59,7 +56,6 @@
     const bus = document.getElementById("bus");
     let selectedSeat = null;
 
-    // Занятые места (можешь менять список здесь)
     const bookedSeats = ["21", "34", "83"];
 
     const layout = [
@@ -104,24 +100,16 @@
 
     function confirmSeat() {
       if (!selectedSeat) {
-        alert("Сначала выберите место на схеме!");
+        alert("Пожалуйста, выберите место");
         return;
       }
 
-      // Функция отправки в ManyChat
-      const sendToManyChat = () => {
-        if (typeof MC !== 'undefined' && MC.getChatControl) {
-          MC.getChatControl().setCustomField("seat", selectedSeat);
-          setTimeout(() => { MC.getChatControl().close(); }, 600);
-        } else if (window.ManyChat) {
-          window.ManyChat.setCustomField("seat", selectedSeat);
-          window.ManyChat.close();
-        } else {
-          alert("Место " + selectedSeat + " выбрано, но ManyChat еще загружается. Попробуйте еще раз через секунду.");
-        }
-      };
-
-      sendToManyChat();
+      if (typeof MC !== 'undefined' && MC.getChatControl) {
+        MC.getChatControl().setCustomField("seat", selectedSeat);
+        setTimeout(() => { MC.getChatControl().close(); }, 600);
+      } else {
+        alert("ManyChat еще загружается. Попробуйте через секунду.");
+      }
     }
   </script>
 </body>
