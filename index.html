@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>Вибір місця</title>
+  <!-- Подключаем SDK с твоим хэшем -->
   <script src="//://manychat.com" defer></script>
   <script src="https://mccdn.me" defer></script>
   <style>
@@ -12,7 +13,7 @@
     .bus-container { display: inline-block; background: #fff; padding: 15px; border-radius: 25px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); border: 1px solid #e0e0e0; }
     .row { display: flex; justify-content: center; margin: 4px 0; }
     .seat { width: 50px; height: 50px; margin: 4px; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; border: 2px solid #c8e6c9; }
-    .seat.selected { background: #0095f6; border-color: #007bb5; color: #fff; }
+    .seat.selected { background: #0095f6 !important; border-color: #007bb5 !important; color: #fff !important; }
     .aisle { width: 30px; }
     .confirm-btn { margin-top: 25px; padding: 18px; width: 90%; max-width: 320px; font-size: 18px; font-weight: 700; background: #0095f6; color: white; border: none; border-radius: 15px; }
   </style>
@@ -42,20 +43,23 @@
   document.getElementById("confirmBtn").onclick = () => {
     if (!selectedSeat) { alert("Будь ласка, оберіть місце"); return; }
     
-    // Проверка наличия ManyChat SDK
-    const mc = window.MC || (window.ManyChat && window.ManyChat.getChatControl ? window.ManyChat.getChatControl() : null);
+    // Пытаемся найти ManyChat всеми возможными способами
+    let mc = window.MC || (window.ManyChat && window.ManyChat.getChatControl ? window.ManyChat.getChatControl() : null);
     
+    if (!mc && window.parent && window.parent.MC) mc = window.parent.MC;
+
     if (mc) {
       try {
-        // Попытка записать данные
-        mc.setCustomField("seat", selectedSeat);
-        alert("Успіх! Місце " + selectedSeat + " збережено. Закриваємо...");
-        setTimeout(() => { if (mc.close) mc.close(); }, 800);
+        if (mc.setCustomField) mc.setCustomField("seat", selectedSeat);
+        else if (mc.setFieldValue) mc.setFieldValue("seat", selectedSeat);
+        
+        alert("✅ Місце " + selectedSeat + " вибрано!");
+        setTimeout(() => { if (mc.close) mc.close(); }, 500);
       } catch (err) {
-        alert("Помилка SDK: " + err.message);
+        alert("Помилка при записі: " + err.message);
       }
     } else {
-      alert("ManyChat SDK не знайдено. Причина: сайт відкрито не через Webview або домен не у Whitelist.");
+      alert("❌ SDK все ще не знайдено. \n\nСпробуй переопублікувати Flow в ManyChat!");
     }
   };
 </script>
