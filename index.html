@@ -41,20 +41,19 @@
   document.getElementById("confirmBtn").onclick = function() {
     if (!selectedSeat) { alert("Будь ласка, оберіть місце"); return; }
     
-    // Получаем mcp_token автоматически
     const urlParams = new URLSearchParams(window.location.search);
     const mcpToken = urlParams.get('mcp_token');
 
     if (mcpToken) {
-      // Метод прямой отправки через Pixel URL
+      // Прямая отправка сигнала
       const pixelUrl = `https://manychat.com{mcpToken}&event=set_field&field=seat&value=${selectedSeat}`;
       const img = new Image();
       img.src = pixelUrl;
       
-      alert("📡 Місце " + selectedSeat + " вибрано! Перевір ManyChat.");
-      setTimeout(() => { window.history.back(); }, 1000);
+      alert("📡 Сигнал відправлено! Токен знайдено: " + mcpToken.substring(0, 10) + "...");
+      setTimeout(() => { window.history.back(); }, 1500);
     } else {
-      alert("❌ Помилка: mcp_token не знайдено. Відкрий сайт через кнопку в Instagram!");
+      alert("❌ Помилка: mcp_token не переданий из Instagram. Перевір, чи кнопка налаштована правильно!");
     }
   };
 </script>
