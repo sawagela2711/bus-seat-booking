@@ -2,77 +2,56 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Выбор места в автобусе</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Выбор места</title>
 
-  <!-- Подключение ManyChat SDK с твоим ID -->
+  <!-- Твой ID 4049391 -->
   <script src="https://manychat.com" defer></script>
 
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f2f5; padding: 15px; margin: 0; }
+    /* Блокируем выделение текста и зум при тапах в Instagram */
+    * { -webkit-tap-highlight-color: transparent; user-select: none; }
     
-    h2 { color: #333; margin-top: 10px; font-size: 22px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+           text-align: center; background-color: #fafafa; padding: 10px; margin: 0; }
+    
+    h2 { color: #262626; font-size: 20px; margin: 15px 0; }
 
-    .bus { 
-      display: inline-block; 
-      background: white; 
-      padding: 15px; 
-      border-radius: 20px; 
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-      border: 2px solid #ddd; 
-      margin-top: 10px;
-    }
+    .bus-wrapper { display: inline-block; background: white; padding: 10px; border-radius: 24px; 
+                   box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #dbdbdb; }
 
-    .row { display: flex; justify-content: center; margin: 6px 0; }
+    .row { display: flex; justify-content: center; margin: 4px 0; }
 
-    /* КНОПКИ МЕСТ СТАЛИ БОЛЬШЕ */
+    /* Кнопки мест: идеальный размер для пальца в Instagram */
     .seat { 
-      width: 52px; 
-      height: 52px; 
-      margin: 5px; 
-      background: #4CAF50; 
-      color: white; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      border-radius: 10px; 
-      cursor: pointer; 
-      font-size: 16px; 
-      font-weight: bold; 
-      transition: 0.2s; 
-      border: 1px solid #388E3C; 
-      -webkit-tap-highlight-color: transparent;
+      width: 50px; height: 50px; margin: 4px; background: #edffed; color: #2d8a2d; 
+      display: flex; align-items: center; justify-content: center; border-radius: 12px; 
+      cursor: pointer; font-size: 15px; font-weight: 700; transition: all 0.1s ease; 
+      border: 2px solid #a8e6a8; box-sizing: border-box;
     }
 
-    .seat.booked { background: #bbb !important; border-color: #999 !important; cursor: not-allowed; opacity: 0.7; }
-    .seat.selected { background: #FF9800 !important; border-color: #E65100 !important; transform: scale(1.1); box-shadow: 0 0 12px rgba(255,152,0,0.6); }
+    .seat.booked { background: #efefef !important; border-color: #dbdbdb !important; color: #8e8e8e !important; cursor: not-allowed; }
+    .seat.selected { background: #0095f6 !important; border-color: #0074cc !important; color: white !important; transform: scale(1.05); }
     
-    .aisle { width: 35px; } /* Проход тоже чуть шире */
+    .aisle { width: 30px; }
 
-    /* ГЛАВНАЯ КНОПКА ПОДТВЕРЖДЕНИЯ СТАЛА БОЛЬШЕ */
+    /* Кнопка в стиле Instagram */
     .confirm-btn { 
-      margin-top: 30px; 
-      padding: 18px 50px; 
-      font-size: 20px; 
-      font-weight: bold;
-      background-color: #007bff; 
-      color: white; 
-      border: none; 
-      border-radius: 35px; 
-      cursor: pointer; 
-      box-shadow: 0 6px 12px rgba(0,123,255,0.3);
-      width: 90%;
-      max-width: 300px;
+      margin: 25px 0; padding: 16px 20px; font-size: 16px; font-weight: 600;
+      background-color: #0095f6; color: white; border: none; border-radius: 12px; 
+      cursor: pointer; width: 90%; max-width: 320px;
     }
     
-    .confirm-btn:active { background-color: #0056b3; transform: translateY(2px); }
+    .confirm-btn:active { opacity: 0.7; }
   </style>
 </head>
 <body>
 
   <h2>🚌 Выберите место</h2>
 
-  <div class="bus" id="bus"></div>
+  <div class="bus-wrapper">
+    <div id="bus"></div>
+  </div>
 
   <br>
   <button class="confirm-btn" onclick="confirmSeat()">ПОДТВЕРДИТЬ</button>
@@ -81,10 +60,8 @@
     const bus = document.getElementById("bus");
     let selectedSeat = null;
 
-    // Список занятых мест
     const bookedSeats = ["21", "34", "83"];
 
-    // Твоя схема
     const layout = [
       ["11","12","14","13"], ["21","22","24","23"], ["31","32","34","33"],
       ["41","42","44","43"], ["51","52","54","53"], ["61","62",null,null],
@@ -96,14 +73,12 @@
     layout.forEach(rowData => {
       const row = document.createElement("div");
       row.className = "row";
-
       rowData.forEach((seatId, index) => {
         if (rowData.length === 4 && index === 2) {
           const aisle = document.createElement("div");
           aisle.className = "aisle";
           row.appendChild(aisle);
         }
-
         if (!seatId) {
           const empty = document.createElement("div");
           empty.className = "seat";
@@ -111,14 +86,10 @@
           row.appendChild(empty);
           return;
         }
-
         const seat = document.createElement("div");
         seat.className = "seat";
         seat.innerText = seatId;
-
-        if (bookedSeats.includes(seatId)) {
-          seat.classList.add("booked");
-        }
+        if (bookedSeats.includes(seatId)) seat.classList.add("booked");
 
         seat.onclick = () => {
           if (seat.classList.contains("booked")) return;
@@ -126,7 +97,6 @@
           seat.classList.add("selected");
           selectedSeat = seatId;
         };
-
         row.appendChild(seat);
       });
       bus.appendChild(row);
@@ -138,20 +108,17 @@
         return;
       }
 
+      // Работа с ManyChat в Instagram
       if (typeof MC !== 'undefined' && MC.getChatControl) {
-        try {
           MC.getChatControl().setCustomField("seat", selectedSeat);
-          setTimeout(() => {
-            MC.getChatControl().close();
-          }, 500);
-        } catch (e) {
-          alert("Ошибка ManyChat: " + e.message);
-        }
+          setTimeout(() => { MC.getChatControl().close(); }, 500);
+      } else if (window.ManyChat) {
+          window.ManyChat.setCustomField("seat", selectedSeat);
+          window.ManyChat.close();
       } else {
-        alert("Место " + selectedSeat + " выбрано! (Открой через ManyChat для сохранения)");
+          alert("Выбрано место: " + selectedSeat + ". Откройте через Direct для связи с ManyChat.");
       }
     }
   </script>
-
 </body>
 </html>
