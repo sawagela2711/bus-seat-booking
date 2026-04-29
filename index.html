@@ -84,10 +84,31 @@
   });
 
   function confirmSeat() {
-    if (!selectedSeat) {
-      alert("Пожалуйста, выберите место");
-      return;
+  if (!selectedSeat) {
+    alert("Пожалуйста, выберите место");
+    return;
+  }
+
+  // Проверяем, загрузился ли ManyChat SDK
+  if (typeof MC !== 'undefined' && MC.getChatControl) {
+    try {
+      // 'seat' — это имя поля в ManyChat (Settings -> Fields)
+      MC.getChatControl().setCustomField('seat', selectedSeat);
+      
+      // Небольшая задержка перед закрытием, чтобы данные успели уйти
+      setTimeout(() => {
+        MC.getChatControl().close();
+      }, 500);
+      
+    } catch (e) {
+      alert("Ошибка при отправке в ManyChat: " + e.message);
     }
+  } else {
+    // Если вы открыли ссылку просто в браузере, сработает этот alert
+    alert("Вы выбрали место: " + selectedSeat + ". Внимание: ManyChat SDK не активен (откройте через бота).");
+  }
+}
+
 
     // Универсальная проверка ManyChat SDK
     if (typeof MC !== 'undefined' && MC.getChatControl) {
