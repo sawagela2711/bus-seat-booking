@@ -4,9 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>Вибір місця</title>
-  <!-- Подключаем ManyChat Pixel -->
-  <script src="//://manychat.com" defer></script>
-  <script src="https://mccdn.me" defer></script>
+
+  <!-- Твой Manychat Pixel из последнего сообщения -->
+  <script src="//widget.manychat.com/4049391_49d46.js" defer="defer"></script>
+  <script src="https://mccdn.me/assets/js/widget.js" defer="defer"></script>
+
   <style>
     * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; user-select: none; }
     body { font-family: -apple-system, sans-serif; text-align: center; background: #f8f9fa; padding: 10px; margin: 0; }
@@ -15,12 +17,14 @@
     .seat { width: 50px; height: 50px; margin: 4px; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; border: 2px solid #c8e6c9; }
     .seat.selected { background: #0095f6 !important; border-color: #007bb5 !important; color: #fff !important; }
     .aisle { width: 30px; }
-    .confirm-btn { margin-top: 25px; padding: 18px; width: 90%; max-width: 320px; font-size: 18px; font-weight: 700; background: #0095f6; color: white; border: none; border-radius: 15px; }
+    .confirm-btn { margin-top: 25px; padding: 18px; width: 90%; max-width: 320px; font-size: 18px; font-weight: 700; background: #0095f6; color: white; border: none; border-radius: 15px; cursor: pointer; }
   </style>
 </head>
 <body>
+
   <h2>🚌 Оберіть місце</h2>
   <div class="bus-container"><div id="bus"></div></div>
+  <br>
   <button class="confirm-btn" id="confirmBtn">ПІДТВЕРДИТИ</button>
 
 <script>
@@ -40,32 +44,33 @@
     bus.appendChild(row);
   });
 
-  document.getElementById("confirmBtn").onclick = () => {
+  document.getElementById("confirmBtn").onclick = function() {
     if (!selectedSeat) { alert("Будь ласка, оберіть місце"); return; }
     
-    // Ищем токен в URL
     const urlParams = new URLSearchParams(window.location.search);
     const mcpToken = urlParams.get('mcp_token');
 
-    if (window.MC && MC.setFieldValue) {
-      // Вариант 1: Через SDK (если прогрузился)
-      MC.setFieldValue("seat", selectedSeat);
-      alert("✅ Місце " + selectedSeat + " вибрано!");
-      setTimeout(() => { if (MC.close) MC.close(); }, 500);
-    } else if (mcpToken) {
-      // Вариант 2: Через прямой запрос Pixel (если SDK не виден)
-      const pageId = "4049391";
-      const pixelUrl = `https://manychat.com{pageId}&mcp_token=${mcpToken}&event=set_field&field=seat&value=${selectedSeat}`;
-      
-      fetch(pixelUrl, { mode: 'no-cors' }); // Шлем сигнал «вслепую»
-      
-      alert("📡 Сигнал отправлен через Pixel. Проверь ManyChat!");
-      // В Instagram окно придется закрыть вручную или через задержку
-      setTimeout(() => { window.history.back(); }, 1500);
+    // 1. Попытка через SDK ManyChat
+    const mc = window.MC || (window.ManyChat && window.ManyChat.getChatControl ? window.ManyChat.getChatControl() : null);
+    
+    if (mc && (mc.setCustomField || mc.setFieldValue)) {
+      if (mc.setCustomField) mc.setCustomField("seat", selectedSeat);
+      else mc.setFieldValue("seat", selectedSeat);
+      alert("✅ Місце " + selectedSeat + " обрано!");
+      setTimeout(() => { if (mc.close) mc.close(); }, 500);
+    } 
+    // 2. Если SDK не активен, шлем через Pixel (mcp_token)
+    else if (mcpToken) {
+      const pixelUrl = `https://manychat.com{mcpToken}&event=set_field&field=seat&value=${selectedSeat}`;
+      const img = new Image();
+      img.src = pixelUrl;
+      alert("📡 Дані відправлено! Перевір ManyChat через 5 секунд.");
+      setTimeout(() => { window.history.back(); }, 1000);
     } else {
-      alert("❌ Ошибка: mcp_token не найден в ссылке. Проверь настройки кнопки в ManyChat!");
+      alert("❌ Помилка: mcp_token не знайдено. Перевір посилання в ManyChat!");
     }
   };
 </script>
+
 </body>
 </html>
