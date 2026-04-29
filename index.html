@@ -1,130 +1,157 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Выбор места в автобусе</title>
 
+  <!-- Подключение ManyChat SDK с твоим ID -->
+  <script src="https://manychat.com" defer></script>
+
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f9; padding-bottom: 50px; }
-    .bus { display: flex; flex-direction: column; align-items: center; margin-top: 20px; background: white; padding: 20px; border-radius: 15px; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    .row { display: flex; justify-content: center; margin: 5px 0; }
-    .seat { width: 45px; height: 45px; margin: 4px; background: #4CAF50; color: white; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s; }
-    .seat.booked { background: #999 !important; cursor: not-allowed; opacity: 0.6; }
-    .seat.selected { background: orange !important; transform: scale(1.1); }
-    .aisle { width: 30px; }
-    button { margin-top: 20px; padding: 15px 30px; font-size: 18px; background-color: #007bff; color: white; border: none; border-radius: 25px; cursor: pointer; }
-    button:active { background-color: #0056b3; }
+    body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f2f5; padding: 15px; margin: 0; }
+    
+    h2 { color: #333; margin-top: 10px; font-size: 22px; }
+
+    .bus { 
+      display: inline-block; 
+      background: white; 
+      padding: 15px; 
+      border-radius: 20px; 
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+      border: 2px solid #ddd; 
+      margin-top: 10px;
+    }
+
+    .row { display: flex; justify-content: center; margin: 6px 0; }
+
+    /* КНОПКИ МЕСТ СТАЛИ БОЛЬШЕ */
+    .seat { 
+      width: 52px; 
+      height: 52px; 
+      margin: 5px; 
+      background: #4CAF50; 
+      color: white; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      border-radius: 10px; 
+      cursor: pointer; 
+      font-size: 16px; 
+      font-weight: bold; 
+      transition: 0.2s; 
+      border: 1px solid #388E3C; 
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .seat.booked { background: #bbb !important; border-color: #999 !important; cursor: not-allowed; opacity: 0.7; }
+    .seat.selected { background: #FF9800 !important; border-color: #E65100 !important; transform: scale(1.1); box-shadow: 0 0 12px rgba(255,152,0,0.6); }
+    
+    .aisle { width: 35px; } /* Проход тоже чуть шире */
+
+    /* ГЛАВНАЯ КНОПКА ПОДТВЕРЖДЕНИЯ СТАЛА БОЛЬШЕ */
+    .confirm-btn { 
+      margin-top: 30px; 
+      padding: 18px 50px; 
+      font-size: 20px; 
+      font-weight: bold;
+      background-color: #007bff; 
+      color: white; 
+      border: none; 
+      border-radius: 35px; 
+      cursor: pointer; 
+      box-shadow: 0 6px 12px rgba(0,123,255,0.3);
+      width: 90%;
+      max-width: 300px;
+    }
+    
+    .confirm-btn:active { background-color: #0056b3; transform: translateY(2px); }
   </style>
 </head>
-
 <body>
 
-<h2>🚌 Выберите место</h2>
+  <h2>🚌 Выберите место</h2>
 
-<div class="bus" id="bus"></div>
+  <div class="bus" id="bus"></div>
 
-<br>
-<button onclick="confirmSeat()">Подтвердить выбор</button>
+  <br>
+  <button class="confirm-btn" onclick="confirmSeat()">ПОДТВЕРДИТЬ</button>
 
-<script>
-  const bus = document.getElementById("bus");
-  let selectedSeat = null;
+  <script>
+    const bus = document.getElementById("bus");
+    let selectedSeat = null;
 
-  // Пример занятых мест
-  const bookedSeats = ["21", "34", "83"];
+    // Список занятых мест
+    const bookedSeats = ["21", "34", "83"];
 
-  // Ваша новая нумерация
-  const layout = [
-    ["11","12","14","13"], ["21","22","24","23"], ["31","32","34","33"],
-    ["41","42","44","43"], ["51","52","54","53"], ["61","62",null,null],
-    ["71","72",null,null], ["81","82","84","83"], ["91","92","94","93"],
-    ["101","102","104","103"], ["111","112","114","113"], ["121","122","124","123"],
-    ["131","132","135","134","133"]
-  ];
+    // Твоя схема
+    const layout = [
+      ["11","12","14","13"], ["21","22","24","23"], ["31","32","34","33"],
+      ["41","42","44","43"], ["51","52","54","53"], ["61","62",null,null],
+      ["71","72",null,null], ["81","82","84","83"], ["91","92","94","93"],
+      ["101","102","104","103"], ["111","112","114","113"], ["121","122","124","123"],
+      ["131","132","135","134","133"]
+    ];
 
-  layout.forEach(rowData => {
-    const row = document.createElement("div");
-    row.className = "row";
+    layout.forEach(rowData => {
+      const row = document.createElement("div");
+      row.className = "row";
 
-    rowData.forEach((seatId, index) => {
-      // Проход между сиденьями
-      if (rowData.length === 4 && index === 2) {
-        const aisle = document.createElement("div");
-        aisle.className = "aisle";
-        row.appendChild(aisle);
-      }
+      rowData.forEach((seatId, index) => {
+        if (rowData.length === 4 && index === 2) {
+          const aisle = document.createElement("div");
+          aisle.className = "aisle";
+          row.appendChild(aisle);
+        }
 
-      if (!seatId) {
-        const empty = document.createElement("div");
-        empty.className = "seat";
-        empty.style.visibility = "hidden";
-        row.appendChild(empty);
+        if (!seatId) {
+          const empty = document.createElement("div");
+          empty.className = "seat";
+          empty.style.visibility = "hidden";
+          row.appendChild(empty);
+          return;
+        }
+
+        const seat = document.createElement("div");
+        seat.className = "seat";
+        seat.innerText = seatId;
+
+        if (bookedSeats.includes(seatId)) {
+          seat.classList.add("booked");
+        }
+
+        seat.onclick = () => {
+          if (seat.classList.contains("booked")) return;
+          document.querySelectorAll(".seat").forEach(s => s.classList.remove("selected"));
+          seat.classList.add("selected");
+          selectedSeat = seatId;
+        };
+
+        row.appendChild(seat);
+      });
+      bus.appendChild(row);
+    });
+
+    function confirmSeat() {
+      if (!selectedSeat) {
+        alert("Пожалуйста, выберите место");
         return;
       }
 
-      const seat = document.createElement("div");
-      seat.className = "seat";
-      seat.innerText = seatId;
-
-      if (bookedSeats.includes(seatId)) {
-        seat.classList.add("booked");
+      if (typeof MC !== 'undefined' && MC.getChatControl) {
+        try {
+          MC.getChatControl().setCustomField("seat", selectedSeat);
+          setTimeout(() => {
+            MC.getChatControl().close();
+          }, 500);
+        } catch (e) {
+          alert("Ошибка ManyChat: " + e.message);
+        }
+      } else {
+        alert("Место " + selectedSeat + " выбрано! (Открой через ManyChat для сохранения)");
       }
-
-      seat.onclick = () => {
-        if (seat.classList.contains("booked")) return;
-        document.querySelectorAll(".seat").forEach(s => s.classList.remove("selected"));
-        seat.classList.add("selected");
-        selectedSeat = seatId;
-      };
-
-      row.appendChild(seat);
-    });
-
-    bus.appendChild(row);
-  });
-
-  function confirmSeat() {
-  if (!selectedSeat) {
-    alert("Пожалуйста, выберите место");
-    return;
-  }
-
-  // Проверяем, загрузился ли ManyChat SDK
-  if (typeof MC !== 'undefined' && MC.getChatControl) {
-    try {
-      // 'seat' — это имя поля в ManyChat (Settings -> Fields)
-      MC.getChatControl().setCustomField('seat', selectedSeat);
-      
-      // Небольшая задержка перед закрытием, чтобы данные успели уйти
-      setTimeout(() => {
-        MC.getChatControl().close();
-      }, 500);
-      
-    } catch (e) {
-      alert("Ошибка при отправке в ManyChat: " + e.message);
     }
-  } else {
-    // Если вы открыли ссылку просто в браузере, сработает этот alert
-    alert("Вы выбрали место: " + selectedSeat + ". Внимание: ManyChat SDK не активен (откройте через бота).");
-  }
-}
-
-
-    // Универсальная проверка ManyChat SDK
-    if (typeof MC !== 'undefined' && MC.getChatControl) {
-      MC.getChatControl().setCustomField("seat", selectedSeat);
-      MC.getChatControl().close();
-    } else if (window.ManyChat) {
-      ManyChat.setCustomField("seat", selectedSeat);
-      ManyChat.close();
-    } else {
-      alert("Вы выбрали место: " + selectedSeat + ". Вне ManyChat данные не сохраняются.");
-    }
-  }
-</script>
-
-<script src="https://widget.manychat.com/4049391.js" defer></script>
+  </script>
 
 </body>
 </html>
-
