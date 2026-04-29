@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>Вибір місця</title>
-  <!-- Подключаем SDK с твоим хэшем -->
+  <!-- Подключаем ManyChat Pixel -->
   <script src="//://manychat.com" defer></script>
   <script src="https://mccdn.me" defer></script>
   <style>
@@ -43,23 +43,27 @@
   document.getElementById("confirmBtn").onclick = () => {
     if (!selectedSeat) { alert("Будь ласка, оберіть місце"); return; }
     
-    // Пытаемся найти ManyChat всеми возможными способами
-    let mc = window.MC || (window.ManyChat && window.ManyChat.getChatControl ? window.ManyChat.getChatControl() : null);
-    
-    if (!mc && window.parent && window.parent.MC) mc = window.parent.MC;
+    // Ищем токен в URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const mcpToken = urlParams.get('mcp_token');
 
-    if (mc) {
-      try {
-        if (mc.setCustomField) mc.setCustomField("seat", selectedSeat);
-        else if (mc.setFieldValue) mc.setFieldValue("seat", selectedSeat);
-        
-        alert("✅ Місце " + selectedSeat + " вибрано!");
-        setTimeout(() => { if (mc.close) mc.close(); }, 500);
-      } catch (err) {
-        alert("Помилка при записі: " + err.message);
-      }
+    if (window.MC && MC.setFieldValue) {
+      // Вариант 1: Через SDK (если прогрузился)
+      MC.setFieldValue("seat", selectedSeat);
+      alert("✅ Місце " + selectedSeat + " вибрано!");
+      setTimeout(() => { if (MC.close) MC.close(); }, 500);
+    } else if (mcpToken) {
+      // Вариант 2: Через прямой запрос Pixel (если SDK не виден)
+      const pageId = "4049391";
+      const pixelUrl = `https://manychat.com{pageId}&mcp_token=${mcpToken}&event=set_field&field=seat&value=${selectedSeat}`;
+      
+      fetch(pixelUrl, { mode: 'no-cors' }); // Шлем сигнал «вслепую»
+      
+      alert("📡 Сигнал отправлен через Pixel. Проверь ManyChat!");
+      // В Instagram окно придется закрыть вручную или через задержку
+      setTimeout(() => { window.history.back(); }, 1500);
     } else {
-      alert("❌ SDK все ще не знайдено. \n\nСпробуй переопублікувати Flow в ManyChat!");
+      alert("❌ Ошибка: mcp_token не найден в ссылке. Проверь настройки кнопки в ManyChat!");
     }
   };
 </script>
