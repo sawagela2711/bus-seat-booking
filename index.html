@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>Выбор места</title>
 
-  <!-- ManyChat WebView SDK -->
   <script src="https://mccdn.me/assets/js/widget.js" defer></script>
 
   <style>
@@ -18,7 +17,7 @@
     body {
       font-family: -apple-system, system-ui, sans-serif;
       text-align: center;
-      background-color: #f8f9fa;
+      background: #f8f9fa;
       padding: 10px;
       margin: 0;
     }
@@ -36,6 +35,9 @@
       border-radius: 25px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.08);
       border: 1px solid #e0e0e0;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
     }
 
     .row {
@@ -59,6 +61,8 @@
       cursor: pointer;
       border: 2px solid #c8e6c9;
       transition: 0.2s;
+
+      touch-action: manipulation;
     }
 
     .seat.booked {
@@ -91,6 +95,14 @@
       border: none;
       border-radius: 15px;
       cursor: pointer;
+
+      position: relative;
+      z-index: 999;
+      touch-action: manipulation;
+    }
+
+    .confirm-btn:active {
+      transform: scale(0.98);
     }
   </style>
 </head>
@@ -103,13 +115,13 @@
   <div id="bus"></div>
 </div>
 
-<button class="confirm-btn" onclick="confirmSeat()">
+<button class="confirm-btn" type="button" id="confirmBtn">
   ПОДТВЕРДИТЬ ВЫБОР
 </button>
 
 <script>
-  const bus = document.getElementById("bus");
   let selectedSeat = null;
+  const bus = document.getElementById("bus");
 
   const bookedSeats = ["21", "34", "83"];
 
@@ -121,14 +133,14 @@
     ["121","122","124","123"], ["131","132","135","134","133"]
   ];
 
-  function renderBus() {
+  function render() {
     layout.forEach(rowData => {
       const row = document.createElement("div");
       row.className = "row";
 
-      rowData.forEach((seatId, index) => {
+      rowData.forEach((seatId, i) => {
 
-        if (rowData.length === 4 && index === 2) {
+        if (rowData.length === 4 && i === 2) {
           const aisle = document.createElement("div");
           aisle.className = "aisle";
           row.appendChild(aisle);
@@ -150,7 +162,7 @@
           seat.classList.add("booked");
         }
 
-        seat.onclick = () => {
+        seat.addEventListener("click", () => {
           if (seat.classList.contains("booked")) return;
 
           document.querySelectorAll(".seat")
@@ -158,7 +170,7 @@
 
           seat.classList.add("selected");
           selectedSeat = seatId;
-        };
+        });
 
         row.appendChild(seat);
       });
@@ -167,32 +179,31 @@
     });
   }
 
-  renderBus();
+  render();
 
-  // 🔥 НАДЁЖНАЯ ОТПРАВКА В MANYCHAT
-  function confirmSeat() {
+  function sendToManyChat() {
     if (!selectedSeat) {
       alert("Пожалуйста, выберите место");
       return;
     }
 
-    const sendToManyChat = () => {
+    const trySend = () => {
       if (window.MC && MC.setFieldValue) {
         MC.setFieldValue("seat", selectedSeat);
 
-        // небольшая задержка чтобы поле успело записаться
         setTimeout(() => {
           if (MC.close) MC.close();
-        }, 400);
+        }, 300);
 
       } else {
-        // ждём загрузку MC
-        setTimeout(sendToManyChat, 200);
+        setTimeout(trySend, 200);
       }
     };
 
-    sendToManyChat();
+    trySend();
   }
+
+  document.getElementById("confirmBtn").addEventListener("click", sendToManyChat);
 </script>
 
 </body>
