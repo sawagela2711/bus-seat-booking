@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+
+    if (ref) {
+      localStorage.setItem("user_ref", ref);
+    }
+
+    window.location.href = "/bus-seat-booking/";
+  </script>
+</head>
+<body></body>
+</html>
