@@ -1,77 +1,11 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Вибір місця</title>
-
-  <style>
-    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; user-select: none; }
-    body { font-family: -apple-system, sans-serif; text-align: center; background: #f8f9fa; padding: 10px; margin: 0; }
-
-    .bus-container {
-      display: inline-block;
-      background: #fff;
-      padding: 15px;
-      border-radius: 25px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-      border: 1px solid #e0e0e0;
-    }
-
-    .row { display: flex; justify-content: center; margin: 4px 0; }
-
-    .seat {
-      width: 50px;
-      height: 50px;
-      margin: 4px;
-      background: #e8f5e9;
-      color: #2e7d32;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      border: 2px solid #c8e6c9;
-    }
-
-    .seat.selected {
-      background: #0095f6 !important;
-      border-color: #007bb5 !important;
-      color: #fff !important;
-    }
-
-    .confirm-btn {
-      margin-top: 25px;
-      padding: 18px;
-      width: 90%;
-      max-width: 320px;
-      font-size: 18px;
-      font-weight: 700;
-      background: #0095f6;
-      color: white;
-      border: none;
-      border-radius: 15px;
-      cursor: pointer;
-    }
-  </style>
-</head>
-
-<body>
-
-<h2>🚌 Оберіть місце</h2>
-
-<div class="bus-container">
-  <div id="bus"></div>
-</div>
-
-<button class="confirm-btn" id="confirmBtn">ПІДТВЕРДИТИ</button>
-
 <script>
   let selectedSeat = null;
 
   const bus = document.getElementById("bus");
+  const confirmBtn = document.getElementById("confirmBtn");
+
+  // "резерви" в браузері (імітація зайнятих місць)
+  const reservedSeats = JSON.parse(localStorage.getItem("reservedSeats") || "[]");
 
   const layout = [
     ["11","12","14","13"],
@@ -89,14 +23,16 @@
     ["131","132","135","134","133"]
   ];
 
-  // створення місць
   layout.forEach(rowData => {
     const row = document.createElement("div");
     row.className = "row";
 
+    const hasAisle = rowData.length === 4;
+
     rowData.forEach((seatId, i) => {
 
-      if (rowData.length === 4 && i === 2) {
+      // універсальний прохід
+      if (hasAisle && i === 2) {
         const aisle = document.createElement("div");
         aisle.style.width = "20px";
         row.appendChild(aisle);
@@ -114,11 +50,28 @@
       seat.className = "seat";
       seat.innerText = seatId;
 
-      seat.onclick = () => {
-        document.querySelectorAll(".seat").forEach(s => s.classList.remove("selected"));
-        seat.classList.add("selected");
-        selectedSeat = seatId;
-      };
+      // якщо місце вже "резервоване"
+      if (reservedSeats.includes(seatId)) {
+        seat.style.background = "#ccc";
+        seat.style.color = "#666";
+        seat.style.borderColor = "#aaa";
+        seat.style.pointerEvents = "none";
+        seat.innerText = "✖";
+      } else {
+        seat.onclick = () => {
+
+          // toggle вибору
+          if (seat.classList.contains("selected")) {
+            seat.classList.remove("selected");
+            selectedSeat = null;
+            return;
+          }
+
+          document.querySelectorAll(".seat").forEach(s => s.classList.remove("selected"));
+          seat.classList.add("selected");
+          selectedSeat = seatId;
+        };
+      }
 
       row.appendChild(seat);
     });
@@ -126,39 +79,38 @@
     bus.appendChild(row);
   });
 
-document.getElementById("confirmBtn").onclick = function() {
 
-  if (!selectedSeat) {
-    alert("Оберіть місце");
-    return;
-  }
+  confirmBtn.onclick = function () {
 
-  const userRef = localStorage.getItem("user_ref");
+    if (!selectedSeat) {
+      alert("Оберіть місце");
+      return;
+    }
 
-  console.log("user_ref:", userRef);
+    const userRef = localStorage.getItem("user_ref");
 
-  if (!userRef) {
-    alert("❌ Немає user_ref");
-    return;
-  }
+    if (!userRef) {
+      alert("❌ Немає user_ref");
+      return;
+    }
 
-  const pixelUrl = `https://manychat.com/fb?user_ref=${userRef}&event=set_field&field=seat&value=${selectedSeat}`;
+    // UX loading
+    confirmBtn.disabled = true;
+    confirmBtn.innerText = "Відправляємо...";
 
-  console.log("PIXEL:", pixelUrl);
+    const pixelUrl =
+      `https://manychat.com/fb?user_ref=${encodeURIComponent(userRef)}&event=set_field&field=seat&value=${encodeURIComponent(selectedSeat)}`;
 
-  const img = new Image();
-  img.src = pixelUrl;
+    const img = new Image();
+    img.src = pixelUrl;
 
-  alert("Відправлено!");
-
-    // (опціонально) чистимо після використання
-    // localStorage.removeItem("user_ref");
+    // 👉 резервуємо місце локально
+    reservedSeats.push(selectedSeat);
+    localStorage.setItem("reservedSeats", JSON.stringify(reservedSeats));
 
     setTimeout(() => {
+      alert("Місце заброньовано!");
       window.history.back();
-    }, 800);
+    }, 700);
   };
 </script>
-
-</body>
-</html>
