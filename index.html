@@ -89,6 +89,7 @@
     ["131","132","135","134","133"]
   ];
 
+  // створення місць
   layout.forEach(rowData => {
     const row = document.createElement("div");
     row.className = "row";
@@ -132,13 +133,13 @@
       return;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const userRef = params.get("user_ref");
+    // 🔥 беремо з localStorage
+    const userRef = localStorage.getItem("user_ref");
 
     console.log("user_ref:", userRef);
 
     if (!userRef) {
-      alert("❌ Помилка: user_ref не знайдено\nВідкрийте посилання не через Instagram або перевірте ManyChat");
+      alert("❌ user_ref не знайдено (redirect не спрацював)");
       return;
     }
 
@@ -147,9 +148,11 @@
     // відправка в ManyChat
     new Image().src = pixelUrl;
 
-    alert("✅ Місце успішно збережено!");
+    alert("✅ Місце збережено!");
 
-    // повернення назад
+    // (опціонально) чистимо після використання
+    // localStorage.removeItem("user_ref");
+
     setTimeout(() => {
       window.history.back();
     }, 800);
