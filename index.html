@@ -126,29 +126,30 @@
     bus.appendChild(row);
   });
 
-  document.getElementById("confirmBtn").onclick = function() {
+document.getElementById("confirmBtn").onclick = function() {
 
-    if (!selectedSeat) {
-      alert("Будь ласка, оберіть місце");
-      return;
-    }
+  if (!selectedSeat) {
+    alert("Оберіть місце");
+    return;
+  }
 
-    // 🔥 беремо з localStorage
-    const userRef = localStorage.getItem("user_ref");
+  const userRef = localStorage.getItem("user_ref");
 
-    console.log("user_ref:", userRef);
+  console.log("user_ref:", userRef);
 
-    if (!userRef) {
-      alert("❌ user_ref не знайдено (redirect не спрацював)");
-      return;
-    }
+  if (!userRef) {
+    alert("❌ Немає user_ref");
+    return;
+  }
 
-    const pixelUrl = `https://manychat.com/fb?user_ref=${userRef}&event=set_field&field=seat&value=${selectedSeat}`;
+  const pixelUrl = `https://manychat.com/fb?user_ref=${userRef}&event=set_field&field=seat&value=${selectedSeat}`;
 
-    // відправка в ManyChat
-    new Image().src = pixelUrl;
+  console.log("PIXEL:", pixelUrl);
 
-    alert("✅ Місце збережено!");
+  const img = new Image();
+  img.src = pixelUrl;
+
+  alert("Відправлено!");
 
     // (опціонально) чистимо після використання
     // localStorage.removeItem("user_ref");
