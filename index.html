@@ -3,116 +3,118 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Вибір місця</title>
+  <title>PRO Вибір місця</title>
 
   <style>
-    * {
-      -webkit-tap-highlight-color: transparent;
-      box-sizing: border-box;
-      user-select: none;
+    *{box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent}
+    body{font-family:-apple-system,sans-serif;background:#f6f7f9;margin:0;text-align:center;padding:12px}
+
+    .bus{display:inline-block;background:#fff;padding:16px;border-radius:20px;box-shadow:0 8px 20px rgba(0,0,0,.08)}
+    .row{display:flex;justify-content:center;align-items:center;margin:4px 0}
+
+    .seat{
+      width:48px;height:48px;margin:4px;
+      display:flex;align-items:center;justify-content:center;
+      border-radius:12px;
+      font-weight:700;
+      border:2px solid #c8e6c9;
+      background:#e8f5e9;
+      color:#2e7d32;
+      cursor:pointer;
+      transition:.15s;
     }
 
-    body {
-      font-family: -apple-system, sans-serif;
-      text-align: center;
-      background: #f8f9fa;
-      padding: 10px;
-      margin: 0;
+    .seat.taken{
+      background:#ccc;
+      color:#666;
+      border-color:#aaa;
+      pointer-events:none;
     }
 
-    .bus-container {
-      display: inline-block;
-      background: #fff;
-      padding: 15px;
-      border-radius: 25px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-      border: 1px solid #e0e0e0;
+    .seat.selected{
+      background:#0095f6;
+      color:#fff;
+      border-color:#007bb5;
     }
 
-    .row {
-      display: flex;
-      justify-content: center;
-      margin: 4px 0;
-      align-items: center;
+    .aisle{width:18px}
+
+    button{
+      margin-top:18px;
+      width:90%;max-width:320px;
+      padding:16px;
+      border:none;
+      border-radius:14px;
+      font-size:16px;
+      font-weight:700;
+      background:#0095f6;
+      color:#fff;
+      cursor:pointer;
     }
 
-    .seat {
-      width: 50px;
-      height: 50px;
-      margin: 4px;
-      background: #e8f5e9;
-      color: #2e7d32;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      border: 2px solid #c8e6c9;
-      transition: 0.15s;
-    }
-
-    .seat.selected {
-      background: #0095f6 !important;
-      border-color: #007bb5 !important;
-      color: #fff !important;
-    }
-
-    .confirm-btn {
-      margin-top: 25px;
-      padding: 18px;
-      width: 90%;
-      max-width: 320px;
-      font-size: 18px;
-      font-weight: 700;
-      background: #0095f6;
-      color: white;
-      border: none;
-      border-radius: 15px;
-      cursor: pointer;
-    }
-
-    .confirm-btn:disabled {
-      opacity: 0.6;
-    }
+    button:disabled{opacity:.6}
   </style>
 </head>
-
 <body>
 
-<h2>🚌 Оберіть місце</h2>
+<h2>🚌 PRO вибір місця</h2>
+<div class="bus" id="bus"></div>
+<button id="btn">ПІДТВЕРДИТИ</button>
 
-<div class="bus-container">
-  <div id="bus"></div>
-</div>
+<script type="module">
 
-<button class="confirm-btn" id="confirmBtn">ПІДТВЕРДИТИ</button>
+// ================= FIREBASE =================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-<script>
-  let selectedSeat = null;
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_DOMAIN",
+  projectId: "YOUR_PROJECT",
+};
 
-  const bus = document.getElementById("bus");
-  const confirmBtn = document.getElementById("confirmBtn");
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  // локальна "резервація"
-  const reservedSeats = JSON.parse(localStorage.getItem("reservedSeats") || "[]");
+// ================= LAYOUT =================
+const layout = [
+  ["11","12","14","13"],
+  ["21","22","24","23"],
+  ["31","32","34","33"],
+  ["41","42","44","43"],
+  ["51","52","54","53"],
+  ["61","62",null,null],
+  ["71","72",null,null],
+  ["81","82","84","83"],
+  ["91","92","94","93"],
+  ["101","102","104","103"],
+  ["111","112","114","113"],
+  ["121","122","124","123"],
+  ["131","132","135","134","133"]
+];
 
-  const layout = [
-    ["11","12","14","13"],
-    ["21","22","24","23"],
-    ["31","32","34","33"],
-    ["41","42","44","43"],
-    ["51","52","54","53"],
-    ["61","62",null,null],
-    ["71","72",null,null],
-    ["81","82","84","83"],
-    ["91","92","94","93"],
-    ["101","102","104","103"],
-    ["111","112","114","113"],
-    ["121","122","124","123"],
-    ["131","132","135","134","133"]
-  ];
+const bus = document.getElementById("bus");
+const btn = document.getElementById("btn");
+let selected = null;
+
+// ================= REALTIME SEATS =================
+const seatsRef = doc(db, "bus", "seats");
+
+let reserved = {};
+
+onSnapshot(seatsRef, snap => {
+  reserved = snap.data() || {};
+  render();
+});
+
+function render(){
+  bus.innerHTML = "";
 
   layout.forEach(rowData => {
     const row = document.createElement("div");
@@ -120,89 +122,83 @@
 
     const hasAisle = rowData.length === 4;
 
-    rowData.forEach((seatId, i) => {
+    rowData.forEach((id,i)=>{
 
-      // універсальний прохід (не ламається на інших рядах)
-      if (hasAisle && i === 2) {
-        const aisle = document.createElement("div");
-        aisle.style.width = "20px";
-        row.appendChild(aisle);
+      if(hasAisle && i===2){
+        const a=document.createElement("div");
+        a.className="aisle";
+        row.appendChild(a);
       }
 
-      if (!seatId) {
-        const empty = document.createElement("div");
-        empty.className = "seat";
-        empty.style.visibility = "hidden";
+      if(!id){
+        const empty=document.createElement("div");
+        empty.className="seat";
+        empty.style.visibility="hidden";
         row.appendChild(empty);
         return;
       }
 
-      const seat = document.createElement("div");
-      seat.className = "seat";
-      seat.innerText = seatId;
+      const seat=document.createElement("div");
+      seat.className="seat";
+      seat.innerText=id;
 
-      // якщо місце вже зайняте
-      if (reservedSeats.includes(seatId)) {
-        seat.style.background = "#ccc";
-        seat.style.color = "#666";
-        seat.style.borderColor = "#aaa";
-        seat.style.pointerEvents = "none";
-        seat.innerText = "✖";
-      } else {
-        seat.onclick = () => {
+      if(reserved[id]) seat.classList.add("taken");
 
-          // toggle вибору
-          if (seat.classList.contains("selected")) {
-            seat.classList.remove("selected");
-            selectedSeat = null;
-            return;
-          }
+      seat.onclick=()=>{
+        if(seat.classList.contains("taken")) return;
 
-          document.querySelectorAll(".seat").forEach(s => s.classList.remove("selected"));
-          seat.classList.add("selected");
-          selectedSeat = seatId;
-        };
-      }
+        document.querySelectorAll(".seat").forEach(s=>s.classList.remove("selected"));
+        seat.classList.add("selected");
+        selected=id;
+      };
 
       row.appendChild(seat);
     });
 
     bus.appendChild(row);
   });
+}
 
-  confirmBtn.onclick = function () {
+// ================= CONFIRM =================
+btn.onclick = async ()=>{
 
-    if (!selectedSeat) {
-      alert("Оберіть місце");
-      return;
-    }
+  if(!selected) return alert("Оберіть місце");
 
-    const userRef = localStorage.getItem("user_ref");
+  const userRef = localStorage.getItem("user_ref");
+  if(!userRef) return alert("Немає user_ref");
 
-    if (!userRef) {
-      alert("❌ Немає user_ref");
-      return;
-    }
+  btn.disabled=true;
+  btn.innerText="Резервуємо...";
 
-    // UX loading
-    confirmBtn.disabled = true;
-    confirmBtn.innerText = "Відправляємо...";
+  // atomic lock
+  const snap = await getDoc(seatsRef);
+  const data = snap.data() || {};
 
-    const pixelUrl =
-      `https://manychat.com/fb?user_ref=${encodeURIComponent(userRef)}&event=set_field&field=seat&value=${encodeURIComponent(selectedSeat)}`;
+  if(data[selected]){
+    alert("Місце вже зайняте");
+    btn.disabled=false;
+    btn.innerText="ПІДТВЕРДИТИ";
+    return;
+  }
 
-    const img = new Image();
-    img.src = pixelUrl;
-
-    // резервуємо місце локально
-    reservedSeats.push(selectedSeat);
-    localStorage.setItem("reservedSeats", JSON.stringify(reservedSeats));
-
-    setTimeout(() => {
-      alert("Місце заброньовано!");
-      window.history.back();
-    }, 700);
+  data[selected] = {
+    userRef,
+    time: Date.now()
   };
+
+  await setDoc(seatsRef, data);
+
+  // ===== ManyChat webhook =====
+  fetch("YOUR_MANYCHAT_WEBHOOK_URL",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({user_ref:userRef,seat:selected})
+  });
+
+  alert("Місце заброньовано!");
+  window.history.back();
+};
+
 </script>
 
 </body>
