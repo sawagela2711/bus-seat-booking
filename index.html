@@ -6,73 +6,24 @@
   <title>Bus Seat Booking PRO</title>
 
   <style>
-    body {
-      font-family: -apple-system, sans-serif;
-      text-align: center;
-      background: #f6f7f9;
-      margin: 0;
-      padding: 10px;
-    }
-
-    .bus {
-      display: inline-block;
-      background: #fff;
-      padding: 15px;
-      border-radius: 20px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-    }
-
-    .row {
-      display: flex;
-      justify-content: center;
-      margin: 4px 0;
-    }
-
+    body { font-family: sans-serif; text-align: center; background: #f6f7f9; }
+    .bus { display:inline-block; background:#fff; padding:15px; border-radius:20px; }
+    .row { display:flex; justify-content:center; margin:4px 0; }
     .seat {
-      width: 50px;
-      height: 50px;
-      margin: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12px;
-      font-weight: bold;
-      border: 2px solid #c8e6c9;
-      background: #e8f5e9;
-      color: #2e7d32;
-      cursor: pointer;
+      width:50px;height:50px;margin:4px;
+      display:flex;align-items:center;justify-content:center;
+      border-radius:12px;font-weight:bold;
+      border:2px solid #c8e6c9;
+      background:#e8f5e9;color:#2e7d32;cursor:pointer;
     }
-
-    .seat.selected {
-      background: #0095f6;
-      color: #fff;
-      border-color: #007bb5;
-    }
-
-    .seat.taken {
-      background: #ccc;
-      color: #666;
-      border-color: #aaa;
-      pointer-events: none;
-    }
-
-    .aisle { width: 20px; }
-
+    .seat.selected { background:#0095f6;color:#fff; }
+    .seat.taken { background:#ccc;color:#666;pointer-events:none; }
+    .aisle { width:20px; }
     button {
-      margin-top: 20px;
-      padding: 15px;
-      width: 90%;
-      max-width: 300px;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: bold;
-      background: #0095f6;
-      color: #fff;
-      cursor: pointer;
+      margin-top:20px;padding:15px;width:90%;
+      max-width:300px;border:none;border-radius:12px;
+      background:#0095f6;color:#fff;font-weight:bold;
     }
-
-    button:disabled { opacity: 0.6; }
   </style>
 </head>
 
@@ -87,11 +38,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  onSnapshot
+  getFirestore, doc, setDoc, getDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -123,12 +70,16 @@ const layout = [
   ["61","62",null,null],
   ["71","72",null,null],
   ["81","82","84","83"],
-  ["91","92","94","93"],
-  ["101","102","104","103"],
-  ["111","112","114","113"],
-  ["121","122","124","123"],
-  ["131","132","135","134","133"]
+  ["91","92","94","93"]
 ];
+
+// 🔥 беремо user_ref з URL
+const params = new URLSearchParams(window.location.search);
+const userRef = params.get("user_ref");
+
+if (userRef) {
+  localStorage.setItem("user_ref", userRef);
+}
 
 // 🔥 LIVE seats
 onSnapshot(seatsRef, (snap) => {
@@ -175,11 +126,6 @@ function renderSeats() {
 
         document.querySelectorAll(".seat").forEach(s => s.classList.remove("selected"));
 
-        if (selectedSeat === seatId) {
-          selectedSeat = null;
-          return;
-        }
-
         seat.classList.add("selected");
         selectedSeat = seatId;
       };
@@ -202,7 +148,7 @@ confirmBtn.onclick = async () => {
   const userRef = localStorage.getItem("user_ref");
 
   if (!userRef) {
-    alert("Немає user_ref");
+    alert("Немає user_ref (відкрий сторінку через ManyChat)");
     return;
   }
 
@@ -214,8 +160,6 @@ confirmBtn.onclick = async () => {
 
   if (data[selectedSeat]) {
     alert("Місце вже зайняте");
-    confirmBtn.disabled = false;
-    confirmBtn.innerText = "ПІДТВЕРДИТИ";
     return;
   }
 
@@ -226,20 +170,21 @@ confirmBtn.onclick = async () => {
 
   await setDoc(seatsRef, data);
 
-  // 🔥 ManyChat
-  fetch("YOUR_MANYCHAT_WEBHOOK_URL", {
+  // 🔥 ManyChat API
+  fetch("https://api.manychat.com/fb/subscriber/setCustomField", {
     method: "POST",
     headers: {
+      "Authorization": "Bearer 4049391:bf0ff4c41d8fdc068d28ccf456e6b534",
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      user_ref: userRef,
-      seat: selectedSeat
+      subscriber_id: userRef,
+      field_name: "seat",
+      field_value: selectedSeat
     })
   });
 
   alert("Місце заброньовано!");
-  window.history.back();
 };
 
 </script>
