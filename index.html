@@ -200,6 +200,8 @@ async function selectSeat(seat) {
   selectedSeats.push(seat);
 }
 
+<script>
+
 // ================= SEND =================
 document.getElementById("confirmBtn").addEventListener("click", sendSeat);
 
@@ -221,6 +223,7 @@ async function sendSeat() {
 
   try {
 
+    // 🔥 Firestore
     for (let s of selectedSeats) {
       await db.collection("seats").doc(s).set({
         userId,
@@ -228,14 +231,25 @@ async function sendSeat() {
       });
     }
 
-    await fetch("https://sendseattomanychat-tu3aajs23a-uc.a.run.app", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        subscriber_id: userId,
-        seats: selectedSeats
-      })
-    });
+    console.log("✅ Firestore OK");
+
+    // 🔥 ManyChat (може падати)
+    try {
+      await fetch("https://sendseattomanychat-tu3aajs23a-uc.a.run.app", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          subscriber_id: userId,
+          seats: selectedSeats
+        })
+      });
+
+      console.log("✅ ManyChat OK");
+
+    } catch (mcError) {
+      console.error("ManyChat ERROR:", mcError);
+      // не блокуємо UX
+    }
 
     showStatus(`
       ✅ <b>Місця заброньовано</b><br>
@@ -245,8 +259,9 @@ async function sendSeat() {
     selectedSeats = [];
 
   } catch (e) {
-    console.error(e);
+    console.error("🔥 ERROR:", e);
     showStatus("❌ " + e.message);
+
     btn.disabled = false;
     btn.innerText = "Підтвердити";
   }
