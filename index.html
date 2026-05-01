@@ -10,18 +10,15 @@ body {
   text-align: center;
   background: #f5f5f5;
 }
-
 .container {
   margin-top: 40px;
 }
-
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 70px);
   gap: 12px;
   justify-content: center;
 }
-
 .seat {
   width: 70px;
   height: 70px;
@@ -33,17 +30,14 @@ body {
   cursor: pointer;
   font-weight: bold;
 }
-
 .seat.selected {
   background: #1e73d8;
   color: white;
 }
-
 .empty {
   width: 70px;
   height: 70px;
 }
-
 button {
   margin-top: 30px;
   padding: 15px 40px;
@@ -54,7 +48,6 @@ button {
   border-radius: 10px;
   cursor: pointer;
 }
-
 .error {
   color: red;
   margin-top: 10px;
@@ -66,11 +59,8 @@ button {
 
 <div class="container">
   <h2>Оберіть місце</h2>
-
   <div id="grid" class="grid"></div>
-
   <button onclick="sendSeat()">Підтвердити</button>
-
   <div id="msg" class="error"></div>
 </div>
 
@@ -98,7 +88,7 @@ const grid = document.getElementById("grid");
 let selectedSeat = null;
 
 // ========================
-// РЕНДЕР СІТКИ
+// РЕНДЕР
 // ========================
 layout.flat().forEach(seat => {
   if (seat === null) {
@@ -122,11 +112,11 @@ layout.flat().forEach(seat => {
 });
 
 // ========================
-// ОТРИМАННЯ USER ID
+// ПРАВИЛЬНИЙ subscriber_id
 // ========================
-function getUserId() {
+function getSubscriberId() {
   const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.get("user_id");
+  return urlParams.get("subscriber_id"); // 🔥 ВАЖЛИВО
 }
 
 // ========================
@@ -136,10 +126,14 @@ async function sendSeat() {
   const msg = document.getElementById("msg");
   msg.innerText = "";
 
-  const userId = getUserId();
+  const subscriberId = getSubscriberId();
 
-  if (!userId) {
-    msg.innerText = "❌ Немає user_id (зайди через ManyChat)";
+  console.log("URL:", window.location.href);
+  console.log("subscriber_id:", subscriberId);
+  console.log("seat:", selectedSeat);
+
+  if (!subscriberId) {
+    msg.innerText = "❌ Немає subscriber_id (відкрий через ManyChat)";
     return;
   }
 
@@ -155,16 +149,33 @@ async function sendSeat() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        subscriber_id: userId,
+        subscriber_id: subscriberId,
         seat: selectedSeat
       })
     });
 
-    const data = await res.json();
+    const text = await res.text();
+    console.log("RAW RESPONSE:", text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      msg.innerText = "❌ Сервер повернув не JSON";
+      return;
+    }
+
+    console.log("PARSED:", data);
+
+    if (!data.success) {
+      msg.innerText = "❌ Помилка: " + data.error;
+      return;
+    }
 
     alert("✅ Заброньовано місце: " + selectedSeat);
 
   } catch (e) {
+    console.error(e);
     msg.innerText = "❌ Сервер недоступний";
   }
 }
