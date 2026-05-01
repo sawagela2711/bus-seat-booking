@@ -1,3 +1,82 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Вибір місць</title>
+
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #f5f5f5;
+}
+
+.container {
+  margin-top: 40px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 70px);
+  gap: 12px;
+  justify-content: center;
+}
+
+.seat {
+  width: 70px;
+  height: 70px;
+  background: #cfe3d3;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.seat.taken { background: #999; }
+.seat.locked { background: #ffc107; }
+.seat.selected { background: #1e73d8; color: white; }
+
+.empty {
+  width: 70px;
+  height: 70px;
+}
+
+button {
+  margin-top: 15px;
+  padding: 12px 30px;
+  font-size: 18px;
+  background: #1e73d8;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.error {
+  color: red;
+  margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h2>Оберіть місця</h2>
+
+  <div id="grid" class="grid"></div>
+
+  <button onclick="autoSelectSeats()">Посадити поруч</button>
+  <button onclick="sendSeat()">Підтвердити</button>
+
+  <div id="msg" class="error"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
 <script>
 // ================= CONFIG =================
 firebase.initializeApp({
@@ -7,10 +86,27 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 
+// ================= РОЗСАДКА =================
+const layout = [
+["11","12",null,"14","13"],
+["21","22",null,"24","23"],
+["31","32",null,"34","33"],
+["41","42",null,"44","43"],
+["51","52",null,"54","53"],
+["61","62",null,null,null],
+["71","72",null,null,null],
+["81","82",null,"84","83"],
+["91","92",null,"94","93"],
+["101","102",null,"104","103"],
+["111","112",null,"114","113"],
+["121","122",null,"124","123"],
+["131","132","133","134","135"]
+];
+
 // ================= STATE =================
 let seatsMap = {};
 let selectedSeats = [];
-const LOCK_TIME = 2 * 60 * 1000;
+const LOCK_TIME = 120000;
 
 // ================= USER =================
 function getUserId() {
@@ -25,7 +121,6 @@ db.collection("seats").onSnapshot(snapshot => {
   snapshot.forEach(doc => {
     const d = doc.data();
 
-    // авто очищення протухших lock
     if (d.status === "locked" && d.expiresAt < now) {
       db.collection("seats").doc(doc.id).delete();
       return;
@@ -43,9 +138,9 @@ function render() {
 
   layout.flat().forEach(seat => {
     if (!seat) {
-      const empty = document.createElement("div");
-      empty.className = "empty";
-      grid.appendChild(empty);
+      const div = document.createElement("div");
+      div.className = "empty";
+      grid.appendChild(div);
       return;
     }
 
@@ -68,7 +163,7 @@ function render() {
 // ================= SELECT =================
 async function selectSeat(seat) {
   const userId = getUserId();
-  if (!userId) return alert("❌ Немає user_id");
+  if (!userId) return alert("❌ Немає subscriber_id");
 
   const d = seatsMap[seat];
 
@@ -76,7 +171,6 @@ async function selectSeat(seat) {
   if (d?.status === "locked" && d.userId !== userId)
     return alert("❌ Хтось вибирає");
 
-  // toggle
   if (selectedSeats.includes(seat)) {
     selectedSeats = selectedSeats.filter(s => s !== seat);
     await db.collection("seats").doc(seat).delete();
@@ -185,10 +279,9 @@ async function autoSelectSeats() {
 async function sendSeat() {
   const userId = getUserId();
 
-  if (!userId) return alert("❌ Немає user_id");
+  if (!userId) return alert("❌ Немає subscriber_id");
   if (selectedSeats.length === 0) return alert("❌ Обери місця");
 
-  // бронюємо
   for (let s of selectedSeats) {
     await db.collection("seats").doc(s).set({
       userId,
@@ -196,7 +289,6 @@ async function sendSeat() {
     });
   }
 
-  // 🔥 ВІДПРАВКА В ФУНКЦІЮ (НОВА ЛОГІКА)
   await fetch("https://sendseattomanychat-tu3aajs23a-uc.a.run.app", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
@@ -223,3 +315,6 @@ window.addEventListener("beforeunload", () => {
   });
 });
 </script>
+
+</body>
+</html>
