@@ -246,7 +246,7 @@ async function sendSeat() {
 
   } catch (e) {
     console.error(e);
-    showStatus("❌ Помилка");
+    showStatus("❌ " + e.message);
     btn.disabled = false;
     btn.innerText = "Підтвердити";
   }
