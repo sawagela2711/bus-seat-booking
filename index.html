@@ -54,6 +54,19 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  background: #999;
+}
+
+#statusBox {
+  margin-top: 20px;
+  font-size: 18px;
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
 .error {
   color: red;
   margin-top: 10px;
@@ -69,9 +82,9 @@ button {
   <div id="grid" class="grid"></div>
 
   <button onclick="autoSelectSeats()">Посадити поруч</button>
-  <button onclick="sendSeat()">Підтвердити</button>
+  <button id="confirmBtn" onclick="sendSeat()">Підтвердити</button>
 
-  <div id="msg" class="error"></div>
+  <div id="statusBox"></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -86,23 +99,6 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 
-// ================= РОЗСАДКА =================
-const layout = [
-["11","12",null,"14","13"],
-["21","22",null,"24","23"],
-["31","32",null,"34","33"],
-["41","42",null,"44","43"],
-["51","52",null,"54","53"],
-["61","62",null,null,null],
-["71","72",null,null,null],
-["81","82",null,"84","83"],
-["91","92",null,"94","93"],
-["101","102",null,"104","103"],
-["111","112",null,"114","113"],
-["121","122",null,"124","123"],
-["131","132","133","134","135"]
-];
-
 // ================= STATE =================
 let seatsMap = {};
 let selectedSeats = [];
@@ -111,6 +107,11 @@ const LOCK_TIME = 120000;
 // ================= USER =================
 function getUserId() {
   return new URLSearchParams(location.search).get("subscriber_id");
+}
+
+// ================= STATUS =================
+function showStatus(text) {
+  document.getElementById("statusBox").innerHTML = text;
 }
 
 // ================= REALTIME =================
@@ -152,6 +153,8 @@ function render() {
 
     if (d?.status === "booked") div.classList.add("taken");
     if (d?.status === "locked") div.classList.add("locked");
+    if (d?.status === "pending") div.classList.add("taken"); // 🔥 pending теж зайняті
+
     if (selectedSeats.includes(seat)) div.classList.add("selected");
 
     div.onclick = () => selectSeat(seat);
@@ -167,7 +170,9 @@ async function selectSeat(seat) {
 
   const d = seatsMap[seat];
 
-  if (d?.status === "booked") return alert("❌ Зайнято");
+  if (d?.status === "booked" || d?.status === "pending")
+    return alert("❌ Зайнято");
+
   if (d?.status === "locked" && d.userId !== userId)
     return alert("❌ Хтось вибирає");
 
@@ -186,106 +191,24 @@ async function selectSeat(seat) {
   selectedSeats.push(seat);
 }
 
-// ================= SMART =================
-function isFree(seat) {
-  const d = seatsMap[seat];
-  return !d || (d.status === "locked" && d.userId === getUserId());
-}
-
-function getSeatPos(seat) {
-  for (let r = 0; r < layout.length; r++) {
-    for (let c = 0; c < layout[r].length; c++) {
-      if (layout[r][c] === seat) return { r, c };
-    }
-  }
-}
-
-function distance(a, b) {
-  return Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
-}
-
-function score(group) {
-  let s = 0;
-  for (let i = 0; i < group.length; i++) {
-    for (let j = i + 1; j < group.length; j++) {
-      s -= distance(getSeatPos(group[i]), getSeatPos(group[j])) * 10;
-    }
-  }
-  return s;
-}
-
-function combinations(arr, k) {
-  const res = [];
-  function helper(start, combo) {
-    if (combo.length === k) {
-      res.push([...combo]);
-      return;
-    }
-    for (let i = start; i < arr.length; i++) {
-      combo.push(arr[i]);
-      helper(i + 1, combo);
-      combo.pop();
-    }
-  }
-  helper(0, []);
-  return res;
-}
-
-function findBestSeats(count) {
-  const free = [];
-
-  layout.forEach(row =>
-    row.forEach(s => {
-      if (s && isFree(s)) free.push(s);
-    })
-  );
-
-  const combos = combinations(free, count);
-
-  let best = null;
-  let bestScore = -Infinity;
-
-  combos.forEach(g => {
-    const sc = score(g);
-    if (sc > bestScore) {
-      bestScore = sc;
-      best = g;
-    }
-  });
-
-  return best;
-}
-
-// ================= AUTO =================
-async function autoSelectSeats() {
-  const seats = findBestSeats(4);
-
-  if (!seats) return alert("❌ Немає місць поруч");
-
-  const userId = getUserId();
-
-  for (let s of seats) {
-    await db.collection("seats").doc(s).set({
-      userId,
-      status: "locked",
-      expiresAt: Date.now() + LOCK_TIME
-    });
-  }
-
-  selectedSeats = seats;
-}
-
 // ================= SEND =================
 async function sendSeat() {
   const userId = getUserId();
+  const btn = document.getElementById("confirmBtn");
 
   if (!userId) return alert("❌ Немає subscriber_id");
   if (selectedSeats.length === 0) return alert("❌ Обери місця");
 
+  btn.disabled = true;
+  btn.innerText = "Обробка...";
+
+  showStatus("⏳ Створюємо бронювання...");
+
+  // 🔥 ставимо pending
   for (let s of selectedSeats) {
     await db.collection("seats").doc(s).set({
       userId,
-      status: "booked"
+      status: "pending"
     });
   }
 
@@ -294,11 +217,16 @@ async function sendSeat() {
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
       subscriber_id: userId,
-      seats: selectedSeats   // 🔥 МАСИВ!
+      seats: selectedSeats
     })
   });
 
-  alert("✅ Заброньовано: " + selectedSeats.join(", "));
+  showStatus(`
+    ✅ <b>Місця заброньовано</b><br>
+    Очікуйте підтвердження оплати
+  `);
+
+  selectedSeats = [];
 }
 
 // ================= CLEANUP =================
