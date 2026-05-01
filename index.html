@@ -294,7 +294,7 @@ async function sendSeat() {
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
       subscriber_id: userId,
-      seat: selectedSeats.join(", ")
+      seats: selectedSeats   // 🔥 МАСИВ!
     })
   });
 
