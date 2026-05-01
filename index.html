@@ -94,6 +94,9 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 
+// 🔥 ВАЖЛИВО: ПРАВИЛЬНИЙ URL
+const CREATE_BOOKING_URL = "https://createbooking-tu3aajs23a-uc.a.run.app";
+
 // ================= LAYOUT =================
 const layout = [
 ["11","12",null,"14","13"],
@@ -204,11 +207,6 @@ async function sendSeat() {
   const userId = getUserId();
   const btn = document.getElementById("confirmBtn");
 
-  if (!userId) {
-    showStatus("❌ Немає subscriber_id");
-    return;
-  }
-
   if (selectedSeats.length === 0) {
     showStatus("⚠️ Обери місця");
     return;
@@ -221,10 +219,11 @@ async function sendSeat() {
 
   try {
 
-    // 🔥 CREATE BOOKING (ГОЛОВНЕ)
-    const response = await fetch("https://updatebookingstatus-tu3aajs23a-uc.a.run.app/createBooking", {
+    const response = await fetch(CREATE_BOOKING_URL, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
         subscriber_id: userId,
         seats: selectedSeats
@@ -232,15 +231,9 @@ async function sendSeat() {
     });
 
     const data = await response.json();
-
     console.log("SERVER:", data);
 
-    if (!data.success) {
-      showStatus("❌ Помилка сервера");
-      btn.disabled = false;
-      btn.innerText = "Підтвердити";
-      return;
-    }
+    if (!data.success) throw new Error("server error");
 
     showStatus(`
       ✅ <b>Місця заброньовано</b><br>
@@ -251,7 +244,7 @@ async function sendSeat() {
 
   } catch (e) {
     console.error(e);
-    showStatus("❌ " + e.message);
+    showStatus("❌ Помилка з'єднання (fetch)");
 
     btn.disabled = false;
     btn.innerText = "Підтвердити";
