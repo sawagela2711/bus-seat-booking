@@ -2,72 +2,75 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<title>Вибір місця</title>
+<title>Seats</title>
 
 <style>
-body {
-  font-family: Arial;
-  text-align: center;
-  background: #f5f5f5;
-}
-.container {
-  margin-top: 40px;
-}
+body { font-family: Arial; text-align: center; background: #f5f5f5; }
+
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 70px);
   gap: 12px;
   justify-content: center;
 }
+
 .seat {
   width: 70px;
   height: 70px;
   background: #cfe3d3;
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-weight: bold;
 }
-.seat.selected {
-  background: #1e73d8;
-  color: white;
-}
-.empty {
-  width: 70px;
-  height: 70px;
-}
+
+.seat.taken { background: #999; }
+.seat.locked { background: #ffc107; }
+.seat.selected { background: #1e73d8; color: white; }
+
+.empty { width: 70px; height: 70px; }
+
+.legend { display: flex; justify-content: center; gap: 15px; margin: 10px; }
+
 button {
-  margin-top: 30px;
-  padding: 15px 40px;
-  font-size: 18px;
-  background: #1e73d8;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-}
-.error {
-  color: red;
-  margin-top: 10px;
+  margin-top: 20px;
+  padding: 12px 30px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-  <h2>Оберіть місце</h2>
-  <div id="grid" class="grid"></div>
-  <button onclick="sendSeat()">Підтвердити</button>
-  <div id="msg" class="error"></div>
+<h2>Вибір місць</h2>
+
+<div class="legend">
+  <div>🟢 Вільно</div>
+  <div>🔵 Ваше</div>
+  <div>🟡 Хтось вибирає</div>
+  <div>⚫ Зайнято</div>
 </div>
 
+<div id="grid" class="grid"></div>
+
+<button onclick="autoSelectSeats()">Посадити поруч</button>
+<button onclick="sendSeat()">Підтвердити</button>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
 <script>
-// ========================
-// РОЗСАДКА
-// ========================
+// =====================
+// CONFIG
+// =====================
+firebase.initializeApp({
+  apiKey: "XXXX",
+  projectId: "bus-seat-booking-73711"
+});
+
+const db = firebase.firestore();
+
+// =====================
 const layout = [
   ["11","12",null,"14","13"],
   ["21","22",null,"24","23"],
@@ -84,101 +87,178 @@ const layout = [
   ["131","132","133","134","135"]
 ];
 
-const grid = document.getElementById("grid");
-let selectedSeat = null;
+let seatsMap = {};
+let selectedSeats = [];
+const LOCK_TIME = 2 * 60 * 1000;
 
-// ========================
-// РЕНДЕР
-// ========================
-layout.flat().forEach(seat => {
-  if (seat === null) {
-    const div = document.createElement("div");
-    div.className = "empty";
-    grid.appendChild(div);
-    return;
-  }
+function getUserId() {
+  return new URLSearchParams(location.search).get("subscriber_id");
+}
 
-  const div = document.createElement("div");
-  div.className = "seat";
-  div.innerText = seat;
+// =====================
+// REALTIME
+// =====================
+db.collection("seats").onSnapshot(snapshot => {
+  seatsMap = {};
+  const now = Date.now();
 
-  div.onclick = () => {
-    document.querySelectorAll(".seat").forEach(s => s.classList.remove("selected"));
-    div.classList.add("selected");
-    selectedSeat = seat;
-  };
+  snapshot.forEach(doc => {
+    const d = doc.data();
+    if (d.status === "locked" && d.expiresAt < now) return;
+    seatsMap[doc.id] = d;
+  });
 
-  grid.appendChild(div);
+  render();
 });
 
-// ========================
-// ПРАВИЛЬНИЙ subscriber_id
-// ========================
-function getSubscriberId() {
-  const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.get("subscriber_id"); // 🔥 ВАЖЛИВО
+// =====================
+// RENDER
+// =====================
+function render() {
+  grid.innerHTML = "";
+
+  layout.flat().forEach(seat => {
+    if (!seat) return grid.appendChild(document.createElement("div"));
+
+    const div = document.createElement("div");
+    div.className = "seat";
+    div.innerText = seat;
+
+    const d = seatsMap[seat];
+
+    if (d?.status === "booked") div.classList.add("taken");
+    if (d?.status === "locked") div.classList.add("locked");
+
+    if (selectedSeats.includes(seat)) {
+      div.classList.add("selected");
+    }
+
+    div.onclick = () => selectSeat(seat);
+
+    grid.appendChild(div);
+  });
 }
 
-// ========================
-// ВІДПРАВКА
-// ========================
-async function sendSeat() {
-  const msg = document.getElementById("msg");
-  msg.innerText = "";
+// =====================
+// SELECT
+// =====================
+async function selectSeat(seat) {
+  const userId = getUserId();
+  if (!userId) return;
 
-  const subscriberId = getSubscriberId();
+  const d = seatsMap[seat];
 
-  console.log("URL:", window.location.href);
-  console.log("subscriber_id:", subscriberId);
-  console.log("seat:", selectedSeat);
+  if (d?.status === "booked") return alert("Зайнято");
+  if (d?.status === "locked" && d.userId !== userId)
+    return alert("Хтось вибирає");
 
-  if (!subscriberId) {
-    msg.innerText = "❌ Немає subscriber_id (відкрий через ManyChat)";
-    return;
+  await db.collection("seats").doc(seat).set({
+    userId,
+    status: "locked",
+    expiresAt: Date.now() + LOCK_TIME
+  });
+
+  if (selectedSeats.includes(seat)) {
+    selectedSeats = selectedSeats.filter(s => s !== seat);
+  } else {
+    selectedSeats.push(seat);
+  }
+}
+
+// =====================
+// FIND BEST (fallback)
+// =====================
+function isFree(seat) {
+  const d = seatsMap[seat];
+  return !d || d.status === "locked";
+}
+
+function findBestSeats(count) {
+  for (let row of layout) {
+    let group = [];
+
+    for (let s of row) {
+      if (!s) { group = []; continue; }
+
+      if (isFree(s)) group.push(s);
+      else group = [];
+
+      if (group.length === count) return group;
+    }
   }
 
-  if (!selectedSeat) {
-    msg.innerText = "❌ Обери місце";
-    return;
+  if (count === 4) {
+    const three = findBestSeats(3);
+    if (three) {
+      for (let row of layout) {
+        for (let s of row) {
+          if (s && isFree(s) && !three.includes(s))
+            return [...three, s];
+        }
+      }
+    }
   }
 
-  try {
-    const res = await fetch("https://sendseattomanychat-tu3aajs23a-uc.a.run.app", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        subscriber_id: subscriberId,
-        seat: selectedSeat
-      })
+  return null;
+}
+
+// =====================
+// AUTO
+// =====================
+async function autoSelectSeats() {
+  const seats = findBestSeats(4);
+  if (!seats) return alert("Немає місць");
+
+  const userId = getUserId();
+
+  for (let s of seats) {
+    await db.collection("seats").doc(s).set({
+      userId,
+      status: "locked",
+      expiresAt: Date.now() + LOCK_TIME
     });
-
-    const text = await res.text();
-    console.log("RAW RESPONSE:", text);
-
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      msg.innerText = "❌ Сервер повернув не JSON";
-      return;
-    }
-
-    console.log("PARSED:", data);
-
-    if (!data.success) {
-      msg.innerText = "❌ Помилка: " + data.error;
-      return;
-    }
-
-    alert("✅ Заброньовано місце: " + selectedSeat);
-
-  } catch (e) {
-    console.error(e);
-    msg.innerText = "❌ Сервер недоступний";
   }
+
+  selectedSeats = seats;
 }
+
+// =====================
+// SEND
+// =====================
+async function sendSeat() {
+  const userId = getUserId();
+
+  for (let s of selectedSeats) {
+    await db.collection("seats").doc(s).update({
+      status: "booked"
+    });
+  }
+
+  await fetch("https://sendseattomanychat-tu3aajs23a-uc.a.run.app", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      subscriber_id: userId,
+      seat: selectedSeats.join(", ")
+    })
+  });
+
+  alert("Готово: " + selectedSeats.join(", "));
+}
+
+// =====================
+// CLEANUP
+// =====================
+window.addEventListener("beforeunload", () => {
+  Object.entries(seatsMap).forEach(([seat, d]) => {
+    if (d.userId === getUserId() && d.status === "locked") {
+      navigator.sendBeacon(
+        "https://sendseattomanychat-tu3aajs23a-uc.a.run.app/unlockSeat",
+        JSON.stringify({ seat })
+      );
+    }
+  });
+});
 </script>
 
 </body>
