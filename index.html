@@ -111,17 +111,14 @@ const layout = [
 ["131","132","133","134","135"]
 ];
 
-// ================= STATE =================
 let seatsMap = {};
 let selectedSeats = [];
 const LOCK_TIME = 120000;
 
-// ================= USER =================
 function getUserId() {
   return new URLSearchParams(location.search).get("subscriber_id") || "1177468495";
 }
 
-// ================= STATUS =================
 function showStatus(text) {
   document.getElementById("statusBox").innerHTML = text;
 }
@@ -204,10 +201,13 @@ async function selectSeat(seat) {
 document.getElementById("confirmBtn").addEventListener("click", sendSeat);
 
 async function sendSeat() {
-  console.log("CLICKED");
-
   const userId = getUserId();
   const btn = document.getElementById("confirmBtn");
+
+  if (!userId) {
+    showStatus("❌ Немає subscriber_id");
+    return;
+  }
 
   if (selectedSeats.length === 0) {
     showStatus("⚠️ Обери місця");
@@ -221,27 +221,25 @@ async function sendSeat() {
 
   try {
 
-    for (let s of selectedSeats) {
-      await db.collection("seats").doc(s).set({
-        userId,
-        status: "pending"
-      });
-    }
+    // 🔥 CREATE BOOKING (ГОЛОВНЕ)
+    const response = await fetch("https://updatebookingstatus-tu3aajs23a-uc.a.run.app/createBooking", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        subscriber_id: userId,
+        seats: selectedSeats
+      })
+    });
 
-    console.log("✅ Firestore OK");
+    const data = await response.json();
 
-    // optional ManyChat
-    try {
-      await fetch("https://sendseattomanychat-tu3aajs23a-uc.a.run.app", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          subscriber_id: userId,
-          seats: selectedSeats
-        })
-      });
-    } catch (e) {
-      console.log("ManyChat skip");
+    console.log("SERVER:", data);
+
+    if (!data.success) {
+      showStatus("❌ Помилка сервера");
+      btn.disabled = false;
+      btn.innerText = "Підтвердити";
+      return;
     }
 
     showStatus(`
