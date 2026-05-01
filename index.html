@@ -1,55 +1,3 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-<meta charset="UTF-8">
-<title>Seats</title>
-
-<style>
-body { font-family: Arial; text-align: center; background: #f5f5f5; }
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(5, 70px);
-  gap: 12px;
-  justify-content: center;
-}
-
-.seat {
-  width: 70px;
-  height: 70px;
-  background: #cfe3d3;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.seat.taken { background: #999; }
-.seat.locked { background: #ffc107; }
-.seat.selected { background: #1e73d8; color: white; }
-
-.empty { width: 70px; height: 70px; }
-
-button {
-  margin-top: 15px;
-  padding: 12px 30px;
-}
-</style>
-</head>
-
-<body>
-
-<h2>Вибір місць</h2>
-
-<div id="grid" class="grid"></div>
-
-<button onclick="autoSelectSeats()">Посадити поруч</button>
-<button onclick="sendSeat()">Підтвердити</button>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
 <script>
 // ================= CONFIG =================
 firebase.initializeApp({
@@ -58,23 +6,6 @@ firebase.initializeApp({
 });
 
 const db = firebase.firestore();
-
-// ================= РОЗСАДКА =================
-const layout = [
-  ["11","12",null,"14","13"],
-  ["21","22",null,"24","23"],
-  ["31","32",null,"34","33"],
-  ["41","42",null,"44","43"],
-  ["51","52",null,"54","53"],
-  ["61","62",null,null,null],
-  ["71","72",null,null,null],
-  ["81","82",null,"84","83"],
-  ["91","92",null,"94","93"],
-  ["101","102",null,"104","103"],
-  ["111","112",null,"114","113"],
-  ["121","122",null,"124","123"],
-  ["131","132","133","134","135"]
-];
 
 // ================= STATE =================
 let seatsMap = {};
@@ -93,7 +24,13 @@ db.collection("seats").onSnapshot(snapshot => {
 
   snapshot.forEach(doc => {
     const d = doc.data();
-    if (d.status === "locked" && d.expiresAt < now) return;
+
+    // авто очищення протухших lock
+    if (d.status === "locked" && d.expiresAt < now) {
+      db.collection("seats").doc(doc.id).delete();
+      return;
+    }
+
     seatsMap[doc.id] = d;
   });
 
@@ -131,13 +68,20 @@ function render() {
 // ================= SELECT =================
 async function selectSeat(seat) {
   const userId = getUserId();
-  if (!userId) return;
+  if (!userId) return alert("❌ Немає user_id");
 
   const d = seatsMap[seat];
 
-  if (d?.status === "booked") return alert("Зайнято");
+  if (d?.status === "booked") return alert("❌ Зайнято");
   if (d?.status === "locked" && d.userId !== userId)
-    return alert("Хтось вибирає");
+    return alert("❌ Хтось вибирає");
+
+  // toggle
+  if (selectedSeats.includes(seat)) {
+    selectedSeats = selectedSeats.filter(s => s !== seat);
+    await db.collection("seats").doc(seat).delete();
+    return;
+  }
 
   await db.collection("seats").doc(seat).set({
     userId,
@@ -145,14 +89,10 @@ async function selectSeat(seat) {
     expiresAt: Date.now() + LOCK_TIME
   });
 
-  if (selectedSeats.includes(seat)) {
-    selectedSeats = selectedSeats.filter(s => s !== seat);
-  } else {
-    selectedSeats.push(seat);
-  }
+  selectedSeats.push(seat);
 }
 
-// ================= SMART ALGO =================
+// ================= SMART =================
 function isFree(seat) {
   const d = seatsMap[seat];
   return !d || (d.status === "locked" && d.userId === getUserId());
@@ -172,32 +112,27 @@ function distance(a, b) {
 
 function score(group) {
   let s = 0;
-
   for (let i = 0; i < group.length; i++) {
     for (let j = i + 1; j < group.length; j++) {
       s -= distance(getSeatPos(group[i]), getSeatPos(group[j])) * 10;
     }
   }
-
   return s;
 }
 
 function combinations(arr, k) {
   const res = [];
-
   function helper(start, combo) {
     if (combo.length === k) {
       res.push([...combo]);
       return;
     }
-
     for (let i = start; i < arr.length; i++) {
       combo.push(arr[i]);
       helper(i + 1, combo);
       combo.pop();
     }
   }
-
   helper(0, []);
   return res;
 }
@@ -231,7 +166,7 @@ function findBestSeats(count) {
 async function autoSelectSeats() {
   const seats = findBestSeats(4);
 
-  if (!seats) return alert("Немає місць");
+  if (!seats) return alert("❌ Немає місць поруч");
 
   const userId = getUserId();
 
@@ -250,12 +185,18 @@ async function autoSelectSeats() {
 async function sendSeat() {
   const userId = getUserId();
 
+  if (!userId) return alert("❌ Немає user_id");
+  if (selectedSeats.length === 0) return alert("❌ Обери місця");
+
+  // бронюємо
   for (let s of selectedSeats) {
-    await db.collection("seats").doc(s).update({
+    await db.collection("seats").doc(s).set({
+      userId,
       status: "booked"
     });
   }
 
+  // 🔥 ВІДПРАВКА В ФУНКЦІЮ (НОВА ЛОГІКА)
   await fetch("https://sendseattomanychat-tu3aajs23a-uc.a.run.app", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
@@ -265,13 +206,15 @@ async function sendSeat() {
     })
   });
 
-  alert("Готово: " + selectedSeats.join(", "));
+  alert("✅ Заброньовано: " + selectedSeats.join(", "));
 }
 
 // ================= CLEANUP =================
 window.addEventListener("beforeunload", () => {
+  const userId = getUserId();
+
   Object.entries(seatsMap).forEach(([seat, d]) => {
-    if (d.userId === getUserId() && d.status === "locked") {
+    if (d.userId === userId && d.status === "locked") {
       navigator.sendBeacon(
         "https://sendseattomanychat-tu3aajs23a-uc.a.run.app/unlockSeat",
         JSON.stringify({ seat })
@@ -280,6 +223,3 @@ window.addEventListener("beforeunload", () => {
   });
 });
 </script>
-
-</body>
-</html>
